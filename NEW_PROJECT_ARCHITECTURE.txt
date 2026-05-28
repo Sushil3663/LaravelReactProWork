@@ -1,0 +1,785 @@
+================================================================================
+  NEW REACT + LARAVEL PROJECT ARCHITECTURE
+  Inspired by NMB CFA API — Adapted Without Microservices
+  Generated: 2026-05-26
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+ 1. Project Overview
+ 2. Tech Stack
+ 3. Laravel Backend Architecture
+ 4. Folder Structure — Laravel
+ 5. JWT Authentication Setup
+ 6. API Helper — Adapted for No-Microservice
+ 7. Profile Module Deep Dive
+ 8. Response Handler Pattern
+ 9. Base Service Pattern
+10. Middleware Stack
+11. React Frontend Architecture
+12. Folder Structure — React
+13. API Layer in React
+14. Route Map (Profile Module)
+15. Environment Configuration
+16. Key Differences from CFA API
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+This is a monolithic Laravel REST API + React SPA project. Unlike NMB CFA (which
+uses multiple microservices for Customer Identity, Proxy, Notifications), ALL
+business logic in the new project lives inside a single Laravel application
+backed by one database.
+
+Patterns borrowed from CFA:
+  - Domain-driven folder layout inside Laravel
+  - Base Service and Base Controller pattern
+  - ResponseHandler for consistent JSON responses
+  - JWT authentication middleware
+  - ApiHelper (adapted for optional third-party HTTP calls)
+  - Rate limiting on sensitive endpoints
+
+================================================================================
+2. TECH STACK
+================================================================================
+
+  Layer        | Technology
+  -------------|----------------------------------------------
+  Backend      | Laravel 11.x
+  Auth         | tymon/jwt-auth
+  Database     | MySQL / PostgreSQL
+  Cache        | Redis
+  File Storage | Laravel Storage (local / S3)
+  Frontend     | React 18 + Vite
+  State Mgmt   | Redux Toolkit
+  HTTP Client  | Axios
+  UI           | Tailwind CSS + shadcn/ui
+
+================================================================================
+3. LARAVEL BACKEND ARCHITECTURE
+================================================================================
+
+  Request
+    └─► Route (api.php)
+          └─► JWT Middleware (validates Bearer token)
+                └─► Controller (thin — validate, delegate)
+                      └─► Service (business logic)
+                            ├─► Eloquent Model (DB operations)
+                            ├─► ApiHelper (optional 3rd-party calls)
+                            └─► ResponseHandler (format response)
+                                  └─► JSON Response ──► Client
+
+Why this pattern?
+  - Controller stays thin: only handles HTTP validation, calls the Service
+  - Service owns business logic: testable, reusable across commands/jobs
+  - ResponseHandler: every endpoint returns same JSON envelope
+  - ApiHelper: all outgoing HTTP calls in one place, with retry + error handling
+
+================================================================================
+4. FOLDER STRUCTURE — LARAVEL
+================================================================================
+
+app/
+├── Domains/
+│   ├── Auth/
+│   │   ├── Http/Controllers/AuthController.php
+│   │   ├── Services/AuthService.php
+│   │   └── Dto/Requests/
+│   │       ├── LoginRequest.php
+│   │       └── RegisterRequest.php
+│   │
+│   └── Profile/
+│       ├── Http/Controllers/ProfileController.php
+│       ├── Services/ProfileService.php
+│       ├── Transformers/ProfileTransformer.php
+│       └── Dto/Requests/
+│           ├── UpdateProfileRequest.php
+│           └── UploadImageRequest.php
+│
+├── Http/
+│   ├── Controllers/Api/Controller.php     ← Base API controller
+│   ├── Middleware/
+│   │   ├── JwtMiddleware.php              ← Validates JWT, sets request()->auth
+│   │   └── SignResponse.php              ← Optional: sign sensitive responses
+│   └── Responses/ResponseHandler.php     ← Fluent JSON response builder
+│
+├── Models/
+│   ├── User.php
+│   └── Profile.php
+│
+├── Services/BaseService.php              ← Query builder helpers
+├── Helpers/ApiHelper.php                 ← HTTP client for 3rd-party APIs
+└── Exceptions/
+    ├── Handler.php
+    └── GeneralException.php
+
+routes/
+└── api.php
+
+================================================================================
+5. JWT AUTHENTICATION SETUP
+================================================================================
+
+INSTALLATION
+------------
+  composer require tymon/jwt-auth
+  php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"
+  php artisan jwt:secret
+
+CONFIG/AUTH.PHP
+---------------
+  'defaults' => ['guard' => 'api', 'passwords' => 'users'],
+  'guards' => [
+      'api' => ['driver' => 'jwt', 'provider' => 'users'],
+  ],
+
+USER MODEL (implements JWTSubject)
+----------------------------------
+  class User extends Authenticatable implements JWTSubject
+  {
+      public function getJWTIdentifier(): mixed
+      {
+          return $this->getKey();
+      }
+
+      public function getJWTCustomClaims(): array
+      {
+          return [
+              'email' => $this->email,
+              'name'  => $this->name,
+              'role'  => $this->role,
+          ];
+      }
+  }
+
+AUTHCONTROLLER (Login / Refresh / Logout)
+-----------------------------------------
+  public function login(LoginRequest $request): JsonResponse
+  {
+      $credentials = $request->only('email', 'password');
+
+      if (!$token = auth('api')->attempt($credentials)) {
+          return $this->responseHandler->toJson(401, ['message' => 'Invalid credentials']);
+      }
+
+      return $this->responseHandler->toJson(200, [
+          'access_token' => $token,
+          'token_type'   => 'bearer',
+          'expires_in'   => auth('api')->factory()->getTTL() * 60,
+          'user'         => auth('api')->user(),
+      ]);
+  }
+
+  public function logout(): JsonResponse
+  {
+      auth('api')->logout();
+      return $this->responseHandler->toJson(200, ['message' => 'Logged out']);
+  }
+
+  public function refresh(): JsonResponse
+  {
+      return $this->responseHandler->toJson(200, [
+          'access_token' => auth('api')->refresh()
+      ]);
+  }
+
+JWTMIDDLEWARE
+-------------
+  public function handle(Request $request, Closure $next)
+  {
+      try {
+          $user = JWTAuth::parseToken()->authenticate();
+
+          $request->merge(['auth' => [
+              'user_id' => $user->id,
+              'email'   => $user->email,
+              'name'    => $user->name,
+              'role'    => $user->role,
+          ]]);
+
+      } catch (TokenExpiredException $e) {
+          return response()->json(['message' => 'Token expired'], 401);
+      } catch (TokenInvalidException $e) {
+          return response()->json(['message' => 'Token invalid'], 401);
+      } catch (\Exception $e) {
+          return response()->json(['message' => 'Token not provided'], 401);
+      }
+
+      return $next($request);
+  }
+
+ROUTES (api.php)
+----------------
+  // Public
+  Route::prefix('auth')->group(function () {
+      Route::post('/login',    [AuthController::class, 'login']);
+      Route::post('/register', [AuthController::class, 'register']);
+  });
+
+  // Protected
+  Route::middleware('jwt.auth')->group(function () {
+      Route::prefix('auth')->group(function () {
+          Route::post('/logout',  [AuthController::class, 'logout']);
+          Route::post('/refresh', [AuthController::class, 'refresh']);
+          Route::get('/me',       [AuthController::class, 'me']);
+      });
+
+      Route::prefix('profiles')->group(function () {
+          Route::post('/',                  [ProfileController::class, 'get']);
+          Route::put('/{userId}',           [ProfileController::class, 'update']);
+          Route::post('/upload-image',      [ProfileController::class, 'uploadImage']);
+          Route::post('/verify-mobile',     [ProfileController::class, 'verifyMobileNumber']);
+          Route::post('/verify-mobile-otp', [ProfileController::class, 'verifyMobileOtp'])
+               ->middleware('signResponse');
+          Route::post('/change-password',   [AuthController::class, 'changePassword']);
+      });
+  });
+
+.ENV JWT SETTINGS
+-----------------
+  JWT_SECRET=your_generated_secret_here
+  JWT_TTL=60              # minutes (access token lifetime)
+  JWT_REFRESH_TTL=20160   # minutes (14 days)
+  JWT_ALGO=HS256
+
+================================================================================
+6. API HELPER — ADAPTED FOR NO-MICROSERVICE
+================================================================================
+
+In CFA, ApiHelper calls external microservices (CI API, Proxy API, Notify API).
+In the new project, you may not need microservices, but you WILL still call
+third-party APIs (payment gateways, SMS, email, etc.).
+
+The pattern is identical — only the URL targets change.
+
+APP/HELPERS/APIHELPER.PHP
+--------------------------
+  class ApiHelper
+  {
+      public function apiCall(
+          string $method,
+          string $url,
+          array  $data    = [],
+          array  $options = [],
+          bool   $useSSL  = false
+      ): array {
+          try {
+              $http = Http::timeout(30)
+                  ->connectTimeout(10)
+                  ->retry(2, 500)
+                  ->withoutVerifying(!$useSSL);
+
+              if (!empty($options['headers'])) {
+                  $http = $http->withHeaders($options['headers']);
+              }
+
+              if (!empty($options['bearer'])) {
+                  $http = $http->withToken($options['bearer']);
+              }
+
+              $contentType = $options['content_type'] ?? 'json';
+
+              $response = match (strtoupper($method)) {
+                  'GET'    => $http->get($url, $data),
+                  'POST'   => $contentType === 'form'
+                              ? $http->asForm()->post($url, $data)
+                              : $http->post($url, $data),
+                  'PUT'    => $http->put($url, $data),
+                  'DELETE' => $http->delete($url, $data),
+                  default  => throw new GeneralException('Unsupported method', 400),
+              };
+
+              if ($response->failed()) {
+                  throw new GeneralException('External API failed: ' . $response->body(), $response->status());
+              }
+
+              return $response->json() ?? [];
+
+          } catch (GeneralException $e) {
+              throw $e;
+          } catch (\Exception $e) {
+              throw new GeneralException('External API error: ' . $e->getMessage(), 500);
+          }
+      }
+  }
+
+USAGE IN SERVICE
+----------------
+  // Only use ApiHelper when calling EXTERNAL APIs (SMS, payment, etc.)
+  // For own DB operations, use Eloquent directly.
+
+  public function sendSmsOtp(string $mobile, string $otp): void
+  {
+      $this->apiHelper->apiCall('POST', config('services.sms.url'), [
+          'mobile'  => $mobile,
+          'message' => "Your OTP is: {$otp}",
+          'api_key' => config('services.sms.key'),
+      ]);
+  }
+
+CONFIG/SERVICES.PHP
+-------------------
+  return [
+      'sms' => [
+          'url' => env('SMS_API_URL'),
+          'key' => env('SMS_API_KEY'),
+      ],
+      'payment' => [
+          'url'    => env('PAYMENT_API_URL'),
+          'secret' => env('PAYMENT_SECRET'),
+      ],
+  ];
+
+WHEN YOU DO NOT NEED APIHELPER:
+  For all operations that only touch your own database (CRUD, profile updates,
+  image uploads), just use Eloquent directly in the Service. ApiHelper is ONLY
+  needed when calling external HTTP APIs.
+
+================================================================================
+7. PROFILE MODULE DEEP DIVE
+================================================================================
+
+PROFILECONTROLLER (THIN)
+-------------------------
+  class ProfileController extends Controller
+  {
+      public function __construct(private readonly ProfileService $service) {}
+
+      public function get(Request $request): JsonResponse
+      {
+          $profile = $this->service->getProfile($request->auth['user_id']);
+          return $this->responseHandler
+              ->transformWith(new ProfileTransformer())
+              ->toItem($profile)
+              ->toJson(200);
+      }
+
+      public function update(UpdateProfileRequest $request, int $userId): JsonResponse
+      {
+          $profile = $this->service->update($userId, $request->validated());
+          return $this->responseHandler
+              ->transformWith(new ProfileTransformer())
+              ->toItem($profile)
+              ->toJson(200);
+      }
+
+      public function uploadImage(UploadImageRequest $request): JsonResponse
+      {
+          $path = $this->service->uploadImage(
+              $request->auth['user_id'],
+              $request->file('image')
+          );
+          return $this->responseHandler->toJson(200, ['image_path' => $path]);
+      }
+  }
+
+PROFILESERVICE (BUSINESS LOGIC)
+--------------------------------
+  public function update(int $userId, array $data): Profile
+  {
+      $profile = $this->model->where('user_id', $userId)->firstOrFail();
+      $profile->update($data);
+
+      // Clear cache on name change — mirrors CFA pattern
+      if (isset($data['name'])) {
+          cache()->forget("profile_name_{$userId}");
+      }
+
+      return $profile->fresh();
+  }
+
+  public function uploadImage(int $userId, UploadedFile $file): string
+  {
+      $profile = $this->model->where('user_id', $userId)->firstOrFail();
+
+      if ($profile->image) {
+          Storage::delete($profile->image);
+      }
+
+      $path = $file->store("profiles/{$userId}", 'public');
+      $profile->update(['image' => $path]);
+      return $path;
+  }
+
+  public function sendMobileOtp(int $userId, string $mobile): void
+  {
+      $otp = rand(100000, 999999);
+
+      cache()->put("mobile_otp_{$userId}", [
+          'otp'    => $otp,
+          'mobile' => $mobile,
+      ], now()->addMinutes(5));
+
+      $this->apiHelper->apiCall('POST', config('services.sms.url'), [
+          'mobile'  => $mobile,
+          'message' => "Your verification OTP is: {$otp}",
+      ]);
+  }
+
+  public function verifyMobileOtp(int $userId, string $mobile, string $otp): array
+  {
+      $cached = cache()->get("mobile_otp_{$userId}");
+
+      if (!$cached || $cached['otp'] != $otp || $cached['mobile'] !== $mobile) {
+          throw new GeneralException('Invalid or expired OTP', 422);
+      }
+
+      $this->model->where('user_id', $userId)->update(['mobile_verified_at' => now()]);
+      cache()->forget("mobile_otp_{$userId}");
+      return ['message' => 'Mobile verified successfully'];
+  }
+
+PROFILE ELOQUENT MODEL
+----------------------
+  class Profile extends Model
+  {
+      use SoftDeletes;
+
+      protected $table    = 'profiles';
+      protected $fillable = [
+          'user_id', 'name', 'gender', 'date_of_birth',
+          'occupation_type', 'image', 'mobile', 'mobile_verified_at',
+      ];
+
+      protected $casts = [
+          'mobile_verified_at' => 'datetime',
+          'date_of_birth'      => 'date',
+      ];
+
+      public function user()
+      {
+          return $this->belongsTo(User::class);
+      }
+  }
+
+================================================================================
+8. RESPONSE HANDLER PATTERN
+================================================================================
+
+All API endpoints return the same JSON envelope (same as CFA):
+
+  {
+    "resCode": "200",
+    "resDesc": "Success",
+    "data": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "image": "/storage/profiles/1/avatar.jpg"
+    }
+  }
+
+RESPONSEHANDLER CLASS
+---------------------
+  class ResponseHandler
+  {
+      private mixed $data        = null;
+      private mixed $transformer = null;
+
+      public function transformWith($transformer): static
+      {
+          $this->transformer = $transformer;
+          return $this;
+      }
+
+      public function toItem($item): static
+      {
+          $this->data = $this->transformer
+              ? $this->transformer->transform($item)
+              : $item;
+          return $this;
+      }
+
+      public function toCollection($collection): static
+      {
+          $this->data = $this->transformer
+              ? $collection->map(fn ($i) => $this->transformer->transform($i))
+              : $collection;
+          return $this;
+      }
+
+      public function toJson(int $status, mixed $extra = null): JsonResponse
+      {
+          return response()->json([
+              'resCode' => (string) $status,
+              'resDesc' => $status >= 400 ? 'Error' : 'Success',
+              'data'    => $extra ?? $this->data,
+          ], $status);
+      }
+  }
+
+================================================================================
+9. BASE SERVICE PATTERN
+================================================================================
+
+  abstract class BaseService
+  {
+      public function __construct(protected Model $model) {}
+
+      public function all(array $columns = ['*']): Collection
+      {
+          return $this->model->all($columns);
+      }
+
+      public function getById(int|string $id): Model
+      {
+          return $this->model->findOrFail($id);
+      }
+
+      public function paginate(int $perPage = 15): LengthAwarePaginator
+      {
+          return $this->model->paginate($perPage);
+      }
+
+      public function create(array $data): Model
+      {
+          return $this->model->create($data);
+      }
+
+      public function updateById(int|string $id, array $data): Model
+      {
+          $record = $this->getById($id);
+          $record->update($data);
+          return $record->fresh();
+      }
+
+      public function deleteById(int|string $id): bool
+      {
+          return $this->getById($id)->delete();
+      }
+  }
+
+================================================================================
+10. MIDDLEWARE STACK
+================================================================================
+
+  Middleware      | Purpose                                     | Applied to
+  ----------------|---------------------------------------------|-------------------
+  jwt.auth        | Validates Bearer JWT, sets request()->auth  | All protected routes
+  throttle:60,1   | Rate limits to 60 req/min per IP           | All API routes
+  signResponse    | Adds HMAC signature to sensitive responses  | OTP verify routes
+
+GENERALEXCEPTION
+----------------
+  class GeneralException extends RuntimeException
+  {
+      public function __construct(string $message, private int $statusCode = 500)
+      {
+          parent::__construct($message);
+      }
+
+      public function getStatusCode(): int { return $this->statusCode; }
+  }
+
+HANDLER.PHP (global catch)
+--------------------------
+  $this->renderable(function (GeneralException $e, Request $request) {
+      return response()->json([
+          'resCode' => (string) $e->getStatusCode(),
+          'resDesc' => $e->getMessage(),
+          'data'    => null,
+      ], $e->getStatusCode());
+  });
+
+================================================================================
+11. REACT FRONTEND ARCHITECTURE
+================================================================================
+
+Pattern: Feature-Sliced (mirrors backend domains)
+
+  src/
+  ├── features/
+  │   ├── auth/
+  │   │   ├── api/         ← axios calls for login/logout/refresh
+  │   │   ├── hooks/       ← useAuth, useLogin
+  │   │   ├── pages/       ← LoginPage, RegisterPage
+  │   │   └── store/       ← authSlice (Redux Toolkit)
+  │   │
+  │   └── profile/
+  │       ├── api/         ← axios calls for profile endpoints
+  │       ├── hooks/       ← useProfile, useUpdateProfile
+  │       ├── pages/       ← ProfilePage, EditProfilePage
+  │       └── components/  ← ProfileCard, AvatarUpload
+  │
+  ├── shared/
+  │   ├── api/
+  │   │   └── axiosInstance.ts   ← base axios with JWT interceptors
+  │   ├── components/            ← Button, Modal, Input, etc.
+  │   └── types/                 ← shared TypeScript types
+  │
+  └── app/
+      ├── router/index.tsx       ← React Router v6 routes
+      └── App.tsx
+
+================================================================================
+12. FOLDER STRUCTURE — REACT
+================================================================================
+
+features/auth/api/authApi.ts
+  - login(email, password)    → { access_token, user }
+  - logout()
+  - refresh()
+  - me()
+
+features/auth/store/authSlice.ts   (Redux Toolkit slice)
+  - token: string | null          (persisted to localStorage)
+  - user: User | null
+  - setToken(token)               → action
+  - setUser(user)                 → action
+  - clearAuth()                   → action
+
+app/store/index.ts                 (configureStore with auth reducer)
+app/store/hooks.ts                 (useAppDispatch, useAppSelector)
+
+features/profile/api/profileApi.ts
+  - get()
+  - update(userId, data)
+  - uploadImage(file)
+  - verifyMobile(mobile)
+  - verifyMobileOtp(mobile, otp)
+  - changePassword(data)
+
+================================================================================
+13. API LAYER IN REACT
+================================================================================
+
+SHARED/API/AXIOSINSTANCE.TS — JWT auto-attach + refresh
+---------------------------------------------------------
+  const api = axios.create({
+    baseURL: import.meta.env.VITE_API_URL,
+    timeout: 30000,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  // Attach JWT to every request
+  api.interceptors.request.use((config) => {
+    const token = store.getState().auth.token;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  });
+
+  // Handle 401 — try refresh, else logout
+  api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const original = error.config;
+
+      if (error.response?.status === 401 && !original._retry) {
+        original._retry = true;
+        try {
+          const { data } = await axios.post(`${VITE_API_URL}/auth/refresh`, {}, {
+            headers: { Authorization: `Bearer ${store.getState().auth.token}` }
+          });
+          store.dispatch(setToken(data.data.access_token));
+          original.headers.Authorization = `Bearer ${data.data.access_token}`;
+          return api(original);
+        } catch {
+          store.dispatch(clearAuth());
+          window.location.href = '/login';
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+
+FEATURES/PROFILE/API/PROFILEAPI.TS
+------------------------------------
+  export const profileApi = {
+    get: ()                        => api.post('/profiles').then(r => r.data.data),
+    update: (userId, data)         => api.put(`/profiles/${userId}`, data).then(r => r.data.data),
+    uploadImage: (file) => {
+      const form = new FormData();
+      form.append('image', file);
+      return api.post('/profiles/upload-image', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data.data);
+    },
+    verifyMobile: (mobile)         => api.post('/profiles/verify-mobile', { mobile }).then(r => r.data),
+    verifyMobileOtp: (mobile, otp) => api.post('/profiles/verify-mobile-otp', { mobile, otp }).then(r => r.data),
+  };
+
+PROTECTED ROUTE
+---------------
+  export function ProtectedRoute({ children }) {
+    const token = useAppSelector((s) => s.auth.token);
+    return token ? <>{children}</> : <Navigate to="/login" replace />;
+  }
+
+================================================================================
+14. ROUTE MAP (PROFILE MODULE)
+================================================================================
+
+  Method | Endpoint                            | Controller Method              | Auth
+  -------|-------------------------------------|--------------------------------|------
+  POST   | /api/auth/login                     | AuthController@login           | Public
+  POST   | /api/auth/register                  | AuthController@register        | Public
+  POST   | /api/auth/logout                    | AuthController@logout          | JWT
+  POST   | /api/auth/refresh                   | AuthController@refresh         | JWT
+  GET    | /api/auth/me                        | AuthController@me              | JWT
+  POST   | /api/profiles                       | ProfileController@get          | JWT
+  PUT    | /api/profiles/{userId}              | ProfileController@update       | JWT
+  POST   | /api/profiles/upload-image          | ProfileController@uploadImage  | JWT
+  POST   | /api/profiles/verify-mobile         | ProfileController@verifyMobile | JWT
+  POST   | /api/profiles/verify-mobile-otp     | ProfileController@verifyMobileOtp | JWT + signResponse
+  POST   | /api/profiles/change-password       | AuthController@changePassword  | JWT
+
+================================================================================
+15. ENVIRONMENT CONFIGURATION
+================================================================================
+
+LARAVEL .ENV
+------------
+  APP_NAME="My App"
+  APP_ENV=local
+  APP_URL=http://localhost:8000
+
+  DB_CONNECTION=mysql
+  DB_HOST=127.0.0.1
+  DB_PORT=3306
+  DB_DATABASE=myapp
+  DB_USERNAME=root
+  DB_PASSWORD=secret
+
+  JWT_SECRET=
+  JWT_TTL=60
+  JWT_REFRESH_TTL=20160
+  JWT_ALGO=HS256
+
+  REDIS_HOST=127.0.0.1
+  REDIS_PORT=6379
+
+  SMS_API_URL=
+  SMS_API_KEY=
+  PAYMENT_API_URL=
+  PAYMENT_SECRET=
+
+  FILESYSTEM_DISK=public
+
+REACT .ENV
+----------
+  VITE_API_URL=http://localhost:8000/api
+  VITE_APP_NAME="My App"
+
+================================================================================
+16. KEY DIFFERENCES FROM CFA API
+================================================================================
+
+  Aspect            | CFA API                                  | New Project
+  ------------------|------------------------------------------|---------------------------
+  Microservices     | CI API, Proxy API, Notify API            | None — single Laravel app
+  ApiHelper usage   | Heavy — every op calls external service  | Light — 3rd-party only
+  Auth token        | Custom JwtGuard, external validation     | tymon/jwt-auth (standard)
+  Database          | Shared models via composer package       | Direct Eloquent in app/Models
+  Auth data         | request()->auth['username'] from CI JWT  | request()->auth set locally
+  OTP               | Calls external Notify API microservice   | Cache + SMS provider
+  Cards/CBS         | Proxy API for banking data               | Not applicable
+  Response format   | { resCode, resDesc, data }               | { resCode, resDesc, data }
+  Frontend          | Mobile app (Flutter / RN)                | React SPA with Vite
+
+================================================================================
+  END OF DOCUMENT
+  Both files saved at: C:\Users\user\Desktop\CFA\
+    - NEW_PROJECT_ARCHITECTURE.md   (markdown — rendered in editors)
+    - NEW_PROJECT_ARCHITECTURE.txt  (plain text — downloadable, copy-paste)
+================================================================================
