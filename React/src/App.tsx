@@ -6,6 +6,7 @@ import AntdConfig from "./utils/antdConfigs";
 import GlobalStyles from "./constants/style/globalStyles";
 import LoginPage from "./features/auth/pages/LoginPage";
 import RegisterPage from "./features/auth/pages/RegisterPage";
+import ForgotPasswordPage from "./features/auth/pages/ForgotPasswordPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,14 +16,14 @@ const queryClient = new QueryClient({
 
 function App() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password';
 
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={AntdConfig}>
         <GlobalStyles />
         {isAuthPage ? (
-          location.pathname === '/login' ? <LoginPage /> : <RegisterPage />
+          location.pathname === '/login' ? <LoginPage /> : location.pathname === '/register' ? <RegisterPage /> : <ForgotPasswordPage />
         ) : (
           <All />
         )}

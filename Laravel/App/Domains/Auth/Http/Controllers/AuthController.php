@@ -3,6 +3,7 @@
 namespace App\Domains\Auth\Http\Controllers;
 
 use App\Domains\Auth\Dto\Requests\ChangePasswordRequest;
+use App\Domains\Auth\Dto\Requests\ForgotPasswordRequest;
 use App\Http\Controllers\Api\Controller;
 use App\Domains\Auth\Services\AuthService;
 use App\Domains\Auth\Dto\Requests\LoginRequest;
@@ -39,6 +40,19 @@ class AuthController extends Controller
     public function me(): JsonResponse
     {
         return $this->authService->me();
+    }
+
+    public function checkUserExists(Request $request): JsonResponse
+    {
+        return $this->authService->checkUserExists($request->validate([
+            'userName' => 'required|string',
+        ])['userName']);
+    }
+
+
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        return $this->authService->forgotPassword($request->validated());
     }
 
     public function changePassword(ChangePasswordRequest $request): JsonResponse

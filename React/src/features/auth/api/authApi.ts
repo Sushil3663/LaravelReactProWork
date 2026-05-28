@@ -31,6 +31,21 @@ interface ChangePasswordPayload {
   newPassword_confirmation: string;
 }
 
+interface CheckUserExistsPayload {
+  userName: string;
+}
+
+interface UserExistsData {
+  exists: boolean;
+  user?: User;
+}
+
+interface ForgotPasswordPayload {
+  id: string;
+  newPassword: string;
+  newPassword_confirmation: string;
+}
+
 export const authApi = {
   login: (payload: LoginPayload) =>
     api.post<ApiResponse<LoginData>>('/auth/login', payload).then((r) => r.data),
@@ -49,4 +64,10 @@ export const authApi = {
 
   changePassword: (payload: ChangePasswordPayload) =>
     api.post<ApiResponse<null>>('/auth/change-password', payload).then((r) => r.data),
+
+  checkUserExists: (payload: CheckUserExistsPayload) =>
+    api.post<ApiResponse<UserExistsData>>('/auth/user-exists', payload).then((r) => r.data),
+
+  forgotPassword: (payload: ForgotPasswordPayload) =>
+    api.post<ApiResponse<{ user: User }>>('/auth/forgot-password', payload).then((r) => r.data),
 };

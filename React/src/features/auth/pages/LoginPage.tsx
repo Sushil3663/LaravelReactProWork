@@ -72,6 +72,9 @@ export default function LoginPage() {
           </Form.Item>
         </Form>
 
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <Link to="/forgot-password">Forgot Password?</Link>
+        </div>
         <div style={{ textAlign: 'center' }}>
           Don't have an account? <Link to="/register">Register</Link>
         </div>

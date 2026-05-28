@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Profile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Exceptions\TokenExpiredException;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -92,12 +93,50 @@ class AuthService
         }
     }
 
+    public function checkUserExists(string $userName): JsonResponse
+    {
+        try {
+            $checkFilterValue = filter_var($userName, FILTER_VALIDATE_EMAIL) ? "email" : "phone";
+            $userExists = $this->customer->where($checkFilterValue, $userName)->first(['id', 'name', 'email', 'phone', 'age']);
+            if ($userExists) {
+                return $this->responseHandler->toJson(200, 'User existence checked successfully', ['exists' => true, 'user' => $userExists]);
+            } else {
+                return $this->responseHandler->toJson(200, 'User existence checked successfully', ['exists' => false]);
+            }
+        } catch (\Exception $e) {
+            return $this->responseHandler->toJson(401, $e->getMessage());
+        }
+
+    }
+
+    public function forgotPassword(array $data): JsonResponse
+    {
+        try {
+            $user = $this->customer->find($data['id']);
+            if ($user) {
+                if (!Hash::check($data['newPassword'], $user->password)) {
+                    return $this->responseHandler->toJson(400, 'Password does not match');
+                } else {
+                    $data['newPassword'] = bcrypt($data['newPassword']);
+                    $user->password = $data['newPassword'];
+                    $user->save();
+                    return $this->responseHandler->toJson(200, 'Password reset successfully', ['user' => $user]);
+                }
+            } else {
+                return $this->responseHandler->toJson(404, 'User not found');
+            }
+
+        } catch (\Exception $e) {
+            return $this->responseHandler->toJson(404, $e->getMessage());
+        }
+    }
+
     public function changePassword(array $data): JsonResponse
     {
         try {
             $user = Auth::user();
 
-            if (!password_verify($data['prevPassword'], $user->password)) {
+            if (!Hash::check($data['prevPassword'], $user->password)) {
                 return $this->responseHandler->toJson(400, 'Previous password is incorrect');
             }
             if ($data['prevPassword'] === $data['newPassword']) {
@@ -105,7 +144,7 @@ class AuthService
             } elseif ($data['newPassword'] !== $data['newPassword_confirmation']) {
                 return $this->responseHandler->toJson(400, 'New password confirmation does not match');
             } else {
-                $user->password = $data['newPassword'];
+                $user->password = Hash::make($data['newPassword']);
                 $user->save();
 
                 return $this->responseHandler->toJson(200, 'Password changed successfully', ['user' => $user]);

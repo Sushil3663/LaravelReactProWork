@@ -8,6 +8,8 @@ use App\Domains\Profile\Http\Controllers\ProfileController;
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/user-exists', [AuthController::class, 'checkUserExists']);
+    Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 });
 
 // Protected routes
