@@ -14,6 +14,8 @@ import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "../../app/store/hooks";
 import { useLogoutMutation } from "../../features/auth/hooks/useAuthMutations";
 import ChangePasswordPage from "../../features/auth/pages/ChangePasswordPage";
+import { useProfile } from "../../features/profile/hooks/useProfile";
+import { storageUrl } from "../../shared/api/storageUrl";
 
 const { Title, Text } = Typography;
 
@@ -30,6 +32,7 @@ const Header = ({ collapsed, setCollapsed }: IHeaderProps) => {
   const navigate = useNavigate();
   const user = useAppSelector((s) => s.auth.user);
   const logoutMutation = useLogoutMutation();
+  const { data: profile } = useProfile();
 
   useEffect(() => {
     const handleResize = () => {
@@ -109,7 +112,7 @@ const Header = ({ collapsed, setCollapsed }: IHeaderProps) => {
         <Flex justify="center" align="center" gap={30}>
           {!isMobileView && (
             <Title level={4} style={{ marginTop: "1rem" }}>
-              Welcome, {user?.name ?? 'User'}
+              Welcome, {profile?.name ?? user?.name ?? 'User'}
             </Title>
           )}
           <Dropdown
@@ -123,14 +126,30 @@ const Header = ({ collapsed, setCollapsed }: IHeaderProps) => {
             placement="bottomRight"
             arrow={{ pointAtCenter: true }}
           >
-            <UserSwitchOutlined
-              style={{
-                cursor: "pointer",
-                fontSize: 23,
-                marginRight: "1.5rem",
-                marginLeft: "0.5rem",
-              }}
-            />
+            {profile?.image ? (
+              <img
+                src={storageUrl(profile.image) ?? ''}
+                alt="profile"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  cursor: "pointer",
+                  marginRight: "1.5rem",
+                  marginLeft: "0.5rem",
+                }}
+              />
+            ) : (
+              <UserSwitchOutlined
+                style={{
+                  cursor: "pointer",
+                  fontSize: 23,
+                  marginRight: "1.5rem",
+                  marginLeft: "0.5rem",
+                }}
+              />
+            )}
           </Dropdown>
         </Flex>
       </Flex>

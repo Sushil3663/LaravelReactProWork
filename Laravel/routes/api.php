@@ -22,7 +22,7 @@ Route::middleware('jwt.auth')->group(function () {
     });
 
     Route::prefix('profiles')->group(function () {
-        Route::post('/', [ProfileController::class, 'get']);
+        Route::get('/', [ProfileController::class, 'get']);
         Route::put('/{userId}', [ProfileController::class, 'update']);
         Route::post('/upload-image', [ProfileController::class, 'uploadImage']);
         Route::post('/verify-mobile', [ProfileController::class, 'verifyMobileNumber']);

@@ -18,22 +18,22 @@ class ProfileController extends Controller
 
     public function get(Request $request): JsonResponse
     {
-        // TODO: Implement get profile
+        return $this->profileService->getProfile();
     }
 
-    public function update(UpdateProfileRequest $request, int $userId): JsonResponse
+    public function update(UpdateProfileRequest $request, string $userId): JsonResponse
     {
-        // TODO: Implement update profile
+        return $this->profileService->update($userId, $request->validated());
     }
 
     public function uploadImage(UploadImageRequest $request): JsonResponse
     {
-        // TODO: Implement upload image
+        return $this->profileService->uploadImage($request->validated());
     }
 
     public function verifyMobileNumber(Request $request): JsonResponse
     {
-        // TODO: Implement verify mobile
+        return $this->profileService->sendMobileOtp();
     }
 
     public function verifyMobileOtp(Request $request): JsonResponse

@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { UploadOutlined, VideoCameraOutlined, UserOutlined, KeyOutlined } from "@ant-design/icons";
+import { UploadOutlined, VideoCameraOutlined, UserOutlined, EditOutlined, KeyOutlined } from "@ant-design/icons";
 
 export const RouteList = [
   {
@@ -38,10 +38,24 @@ export const RouteList = [
     icon: UploadOutlined,
   },
   {
+    path: "/profile",
+    component: lazy(() => import("../features/profile/pages/ProfilePage")),
+    exact: true,
+    pathname: "My Profile",
+    icon: UserOutlined,
+  },
+  {
+    path: "/profile/edit",
+    component: lazy(() => import("../features/profile/pages/EditProfilePage")),
+    exact: true,
+    pathname: "Edit Profile",
+    icon: EditOutlined,
+  },
+  {
     path: "/auth-information",
     component: lazy(() => import("../features/auth/pages/MePage")),
     exact: true,
-    pathname: "My Profile",
+    pathname: "Auth Info",
     icon: UserOutlined,
   },
   {

@@ -22,13 +22,17 @@ class Profile extends Model
         'date_of_birth',
         'occupation_type',
         'image',
-        'mobile',
         'mobile_verified_at',
     ];
 
     protected $casts = [
         'mobile_verified_at' => 'datetime',
         'date_of_birth' => 'date',
+    ];
+
+    protected $hidden = [
+        'user_id',
+        'deleted_at',
     ];
 
     public function user()

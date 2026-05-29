@@ -46,7 +46,9 @@ class AuthService
         $data['password'] = bcrypt($data['password']);
         $creatableData = $this->customer->create($data);
         if ($creatableData) {
-            $this->profile->create(['user_id' => $creatableData->id, 'name' => $creatableData->name, 'mobile' => $creatableData->phone]);
+            $this->profile->create(['user_id' => $creatableData->id, 'name' => $creatableData->name, 'mobile' => $creatableData->phone, 'email' => $creatableData->email]);
+        } else {
+            return $this->responseHandler->toJson(500, 'User registration failed');
         }
         try {
             $token = JWTAuth::fromUser($creatableData);
