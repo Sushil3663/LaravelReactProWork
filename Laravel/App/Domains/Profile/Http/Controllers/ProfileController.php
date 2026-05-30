@@ -31,13 +31,29 @@ class ProfileController extends Controller
         return $this->profileService->uploadImage($request->validated());
     }
 
-    public function verifyMobileNumber(Request $request): JsonResponse
+    public function sendOtp(Request $request): JsonResponse
     {
-        return $this->profileService->sendMobileOtp();
+        return $this->profileService->sendEmailOtp();
     }
 
-    public function verifyMobileOtp(Request $request): JsonResponse
+    public function verifyOtp(Request $request): JsonResponse
     {
-        // TODO: Implement verify mobile OTP
+        $request->validate([
+            'request_id' => 'required|string',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        return $this->profileService->verifyEmailOtp($request->request_id, $request->otp);
     }
+
+    public function resendOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'mobile' => 'required|string',
+        ]);
+
+        return $this->profileService->resendEmailOtp($request->request_id);
+    }
+
+
 }

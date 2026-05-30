@@ -1,5 +1,11 @@
 import api from '@/shared/api/axiosInstance';
 
+export interface OtpResponse {
+  resCode: string;
+  resDesc: string;
+  data?: { request_id: string };
+}
+
 export interface Profile {
   id: number;
   user_id: number;
@@ -10,6 +16,8 @@ export interface Profile {
   image: string | null;
   mobile: string | null;
   mobile_verified: boolean;
+  email?: string;
+  mobile_verified_at?: string | null;
 }
 
 export const profileApi = {
@@ -26,6 +34,15 @@ export const profileApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data.data);
   },
+
+  sendOtp: () =>
+    api.post('/profiles/send-otp').then((r) => r.data),
+
+  verifyOtp: (data: { request_id: string; otp: string }) =>
+    api.post('/profiles/verify-otp', data).then((r) => r.data),
+
+  resendOtp: (request_id: string) =>
+    api.post('/profiles/resend-otp', { request_id }).then((r) => r.data),
 
   verifyMobile: (mobile: string) =>
     api.post('/profiles/verify-mobile', { mobile }).then((r) => r.data),

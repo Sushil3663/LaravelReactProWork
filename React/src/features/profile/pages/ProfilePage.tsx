@@ -1,8 +1,9 @@
-import { Button, Card, Descriptions, Skeleton, Tag, Typography } from 'antd';
+import { Button, Card, Descriptions, Divider, Skeleton, Tag, Typography } from 'antd';
 import { EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../hooks/useProfile';
 import AvatarUpload from '../components/AvatarUpload';
+import OtpVerification from '../components/OtpVerification';
 
 const { Title } = Typography;
 
@@ -55,6 +56,9 @@ export default function ProfilePage() {
         <Descriptions.Item label="Occupation">
           {profile.occupation_type ?? '-'}
         </Descriptions.Item>
+        <Descriptions.Item label="Email">
+          {profile.email ?? '-'}
+        </Descriptions.Item>
         <Descriptions.Item label="Mobile">
           {profile.mobile ?? '-'}
         </Descriptions.Item>
@@ -62,6 +66,12 @@ export default function ProfilePage() {
           {profile.mobile_verified ? <Tag color="green">Verified</Tag> : <Tag color="red">Not Verified</Tag>}
         </Descriptions.Item>
       </Descriptions>
+
+      <Divider />
+
+      <div style={{ textAlign: 'center' }}>
+        <OtpVerification />
+      </div>
     </Card>
   );
 }

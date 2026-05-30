@@ -25,7 +25,8 @@ Route::middleware('jwt.auth')->group(function () {
         Route::get('/', [ProfileController::class, 'get']);
         Route::put('/{userId}', [ProfileController::class, 'update']);
         Route::post('/upload-image', [ProfileController::class, 'uploadImage']);
-        Route::post('/verify-mobile', [ProfileController::class, 'verifyMobileNumber']);
-        Route::post('/verify-mobile-otp', [ProfileController::class, 'verifyMobileOtp']);
+        Route::post('/send-otp', [ProfileController::class, 'sendOtp']);
+        Route::post('/verify-otp', [ProfileController::class, 'verifyOtp']);
+        Route::post('/resend-otp', [ProfileController::class, 'resendOtp']);
     });
 });
