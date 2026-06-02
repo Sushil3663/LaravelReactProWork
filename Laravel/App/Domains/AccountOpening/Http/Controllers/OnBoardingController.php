@@ -2,7 +2,9 @@
 
 namespace App\Domains\AccountOpening\Http\Controllers;
 
+use App\Domains\AccountOpening\Dto\Requests\BasicInfoRequest;
 use App\Domains\AccountOpening\Dto\Requests\CaseDocumentRequest;
+use App\Domains\AccountOpening\Dto\Requests\OtherInfoRequest;
 use App\Domains\AccountOpening\Services\OnBoardingService;
 use App\Domains\AccountOpening\Dto\Requests\IdentityUploadRequest;
 use App\Http\Controllers\Api\Controller;
@@ -38,6 +40,16 @@ class OnBoardingController extends Controller
     public function UploadCaseDocuments(CaseDocumentRequest $request): JsonResponse
     {
         return $this->onBoardingService->UploadCaseDocuments($request->validated());
+    }
+
+    public function updateBasicInformation(BasicInfoRequest $request): JsonResponse
+    {
+        return $this->onBoardingService->updateBasicInformation($request->validated());
+    }
+
+    public function updateOtherInformation(OtherInfoRequest $request): JsonResponse
+    {
+        return $this->onBoardingService->updateOtherInformation($request->validated());
     }
 
 }

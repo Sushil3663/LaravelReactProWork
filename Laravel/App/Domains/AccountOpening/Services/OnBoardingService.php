@@ -15,7 +15,7 @@ class OnBoardingService
 {
     public function __construct(private readonly ResponseHandler $responseHandler, private readonly Onboarding $onBoard)
     {
-        // You can inject any dependencies here if needed
+
     }
 
     public function caseInitiation(): JsonResponse
@@ -99,7 +99,59 @@ class OnBoardingService
         ];
         $form->update(['formData' => $formData]);
 
-        return $this->responseHandler->toJson(200, 'Case documents uploaded successfully', $form->formData);
+        return $this->responseHandler->toJson(200, 'Case documents uploaded successfully', $formData);
+    }
+
+    public function updateBasicInformation(array $data): JsonResponse
+    {
+        $form = $this->onBoard->where('form_id', $data['form_id'])->first();
+        if (!$form) {
+            return $this->responseHandler->toJson(404, 'Form not found', null);
+        }
+        $formData = (object) [
+            'salutation' => $data['salutation'],
+            'full_name' => $data['full_name'],
+            'gender' => $data['gender'],
+            'date_of_birth' => $data['date_of_birth'],
+            'father_name' => $data['father_name'],
+            'mother_name' => $data['mother_name'],
+            'place_of_birth' => $data['place_of_birth'],
+            ...(array) ($form->formData ?? []),
+        ];
+        $form->update(['formData' => $formData]);
+
+        return $this->responseHandler->toJson(200, 'Basic information updated successfully', $formData);
+    }
+
+    public function updateOtherInformation(array $data): JsonResponse
+    {
+        $form = $this->onBoard->where('form_id', $data['form_id'])->first();
+        if (!$form) {
+            return $this->responseHandler->toJson(404, 'Form not found', null);
+        }
+        $formData = (object) [
+            'country' => $data['country'],
+            'permanent_provience' => $data['permanent_provience'],
+            'permanent_district' => $data['permanent_district'],
+            'permanent_municipality' => $data['permanent_municipality'],
+            'permanent_ward' => $data['permanent_ward'],
+            'permanent_city' => $data['permanent_city'],
+            'temporary_provience' => $data['temporary_provience'],
+            'temporary_district' => $data['temporary_district'],
+            'temporary_municipality' => $data['temporary_municipality'],
+            'temporary_ward' => $data['temporary_ward'],
+            'temporary_city' => $data['temporary_city'],
+            'full_name' => $data['full_name'],
+            'gender' => $data['gender'],
+            'date_of_birth' => $data['date_of_birth'],
+            'father_name' => $data['father_name'],
+            'mother_name' => $data['mother_name'],
+            'place_of_birth' => $data['place_of_birth'],
+            ...(array) ($form->formData ?? []),
+        ];
+        $form->update(['formData' => $formData]);
+
+        return $this->responseHandler->toJson(200, 'Other information updated successfully', $formData);
     }
 
 
