@@ -1,5 +1,5 @@
 import { lazy } from "react";
-import { UploadOutlined, VideoCameraOutlined, UserOutlined, EditOutlined, KeyOutlined } from "@ant-design/icons";
+import { UploadOutlined, VideoCameraOutlined, UserOutlined, EditOutlined, KeyOutlined, SolutionOutlined } from "@ant-design/icons";
 
 export const RouteList = [
   {
@@ -36,6 +36,13 @@ export const RouteList = [
     exact: true,
     pathname: "Card",
     icon: UploadOutlined,
+  },
+  {
+    path: "/onboarding",
+    component: lazy(() => import("../features/onboarding/pages/OnboardingPage")),
+    exact: true,
+    pathname: "Onboarding",
+    icon: SolutionOutlined,
   },
   {
     path: "/profile",
