@@ -1,11 +1,14 @@
 <?php
 
 use App\Domains\AccountOpening\Http\Controllers\OnBoardingController;
+use App\Http\Controllers\Api\MasterDataController;
 use Illuminate\Support\Facades\Route;
 use App\Domains\Auth\Http\Controllers\AuthController;
 use App\Domains\Profile\Http\Controllers\ProfileController;
 
 // Public routes
+Route::get('/master-data', [MasterDataController::class, 'index']);
+
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);

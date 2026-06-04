@@ -6,8 +6,8 @@ export interface OnboardingCase {
   name?: string;
   email?: string;
   phone?: string;
-  formData?: Record<string, unknown>;
   path?: string;
+  formData?: Record<string, unknown>;
   created_at?: string;
   updated_at?: string;
 }
@@ -16,6 +16,38 @@ interface ApiResponse<T> {
   resCode: string;
   resDesc: string;
   data: T;
+}
+
+export interface BasicInfoPayload {
+  form_id: string;
+  salutation: string;
+  full_name: string;
+  gender: string;
+  date_of_birth: string;
+  father_name: string;
+  mother_name: string;
+  place_of_birth: string;
+}
+
+export interface OtherInfoPayload {
+  form_id: string;
+  country: string;
+  permanent_provience: string;
+  permanent_district: string;
+  permanent_municipality: string;
+  permanent_ward: string;
+  permanent_city: string;
+  temporary_provience: string;
+  temporary_district: string;
+  temporary_municipality: string;
+  temporary_ward: string;
+  temporary_city: string;
+  full_name: string;
+  gender: string;
+  date_of_birth: string;
+  father_name: string;
+  mother_name: string;
+  place_of_birth: string;
 }
 
 export const onboardingApi = {
@@ -40,9 +72,9 @@ export const onboardingApi = {
   uploadCaseDocuments: (data: { form_id: string; documentPath: string; documentType: string }) =>
     api.post<ApiResponse<Record<string, unknown>>>('/onboarding/case-upload', data).then(r => r.data),
 
-  updateBasicInformation: (data: { form_id: string; name?: string; email?: string; phone?: string }) =>
+  updateBasicInformation: (data: BasicInfoPayload) =>
     api.post<ApiResponse<OnboardingCase>>('/onboarding/basic-information', data).then(r => r.data),
 
-  updateOtherInformation: (data: { form_id: string } & Record<string, unknown>) =>
+  updateOtherInformation: (data: OtherInfoPayload) =>
     api.post<ApiResponse<OnboardingCase>>('/onboarding/other-information', data).then(r => r.data),
 };

@@ -26,6 +26,12 @@ class OtherInfoRequest extends FormRequest
             'temporary_ward' => 'required|string|max:3',
             'temporary_city' => 'required|string|max:255',
             'form_id' => 'required|string|max:255|uuid',
+            'full_name' => 'required|string|max:255',
+            'gender' => 'required|string|in:male,female,other',
+            'date_of_birth' => 'required|date',
+            'father_name' => 'required|string|max:255',
+            'mother_name' => 'required|string|max:255',
+            'place_of_birth' => 'required|string|max:255',
         ];
     }
 }

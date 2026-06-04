@@ -17,7 +17,7 @@ class MdDistrict extends Model
 
     protected $fillable = [
         'provience_id',
-        'name',
+        'title',
         'code',
         'is_active',
         'sort_order',

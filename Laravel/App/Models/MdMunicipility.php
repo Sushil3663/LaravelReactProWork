@@ -16,17 +16,11 @@ class MdMunicipility extends Model
 
     protected $fillable = [
         'district_id',
-        'name',
-        'code',
-        'type',
-        'is_active',
-        'sort_order',
+        'title',
+        'code'
+
     ];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-        'sort_order' => 'integer',
-    ];
 
     public function district(): BelongsTo
     {

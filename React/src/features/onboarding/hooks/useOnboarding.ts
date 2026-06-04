@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { onboardingApi } from '@/features/onboarding/api/onboardingApi';
+import { onboardingApi, type BasicInfoPayload, type OtherInfoPayload } from '@/features/onboarding/api/onboardingApi';
 import { message } from 'antd';
 
 export function useLatestOnboarding() {
@@ -19,6 +19,15 @@ export function useOnboardingForm(formId: string | null) {
   });
 }
 
+function extractError(err: unknown): string {
+  const axiosErr = err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } };
+  const errors = axiosErr?.response?.data?.errors;
+  if (errors) {
+    return Object.entries(errors).map(([field, msgs]) => `${field}: ${msgs.join(', ')}`).join('; ');
+  }
+  return axiosErr?.response?.data?.message ?? 'Request failed';
+}
+
 export function useCaseInitiation() {
   const queryClient = useQueryClient();
 
@@ -28,6 +37,7 @@ export function useCaseInitiation() {
       queryClient.invalidateQueries({ queryKey: ['onboarding', 'latest'] });
       message.success('Case initiated successfully');
     },
+    onError: (err: unknown) => message.error(extractError(err)),
   });
 }
 
@@ -41,6 +51,7 @@ export function useUploadImage() {
       queryClient.invalidateQueries({ queryKey: ['onboarding'] });
       message.success('Image uploaded successfully');
     },
+    onError: (err: unknown) => message.error(extractError(err)),
   });
 }
 
@@ -54,5 +65,34 @@ export function useUploadCaseDocuments() {
       queryClient.invalidateQueries({ queryKey: ['onboarding'] });
       message.success('Documents uploaded successfully');
     },
+    onError: (err: unknown) => message.error(extractError(err)),
+  });
+}
+
+export function useUpdateBasicInfo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: BasicInfoPayload) =>
+      onboardingApi.updateBasicInformation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+      message.success('Basic information saved');
+    },
+    onError: (err: unknown) => message.error(extractError(err)),
+  });
+}
+
+export function useUpdateOtherInfo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: OtherInfoPayload) =>
+      onboardingApi.updateOtherInformation(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+      message.success('Address information saved');
+    },
+    onError: (err: unknown) => message.error(extractError(err)),
   });
 }

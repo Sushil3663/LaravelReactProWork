@@ -17,7 +17,7 @@ class MdProvience extends Model
 
     protected $fillable = [
         'country_id',
-        'name',
+        'title',
         'code',
         'is_active',
         'sort_order',
