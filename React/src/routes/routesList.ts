@@ -78,5 +78,6 @@ export const RouteList = [
     exact: true,
     pathname: "User Management",
     icon: UserOutlined,
+    permissions: ['usermanagement.list'],
   },
 ];

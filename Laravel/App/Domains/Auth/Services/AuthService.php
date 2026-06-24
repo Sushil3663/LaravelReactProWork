@@ -89,7 +89,10 @@ class AuthService
     {
         try {
             $user = JWTAuth::parseToken()->authenticate();
+            $allPermissions = $user->getAllPermissions()->pluck('name');
 
+            $user->all_permissions = $allPermissions;
+            $user->makeHidden('roles');
             return $this->responseHandler->toJson(200, 'Successfully retrieved Auth information', ['user' => $user]);
         } catch (\Exception $e) {
             return $this->responseHandler->toJson(401, $e->getMessage());

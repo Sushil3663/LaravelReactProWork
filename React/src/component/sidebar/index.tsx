@@ -2,6 +2,8 @@ import { Layout, Menu, Typography } from "antd";
 import { COLORS } from "../../constants/style/colors";
 import { RouteList } from "../../routes/routesList";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { authApi } from "../../features/auth/api/authApi";
 const { Text } = Typography;
 interface IProps {
   collapsed: boolean;
@@ -12,8 +14,22 @@ const Sidebar = ({ collapsed }: IProps) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const { data: meData } = useQuery({
+    queryKey: ['me'],
+    queryFn: authApi.me,
+  });
+
+  const userPermissions =
+    meData?.data?.user?.all_permissions ?? [];
+
+  const filteredRoutes = RouteList.filter((route) => {
+    const r = route as { permissions?: string[] };
+    if (!r.permissions) return true;
+    return r.permissions.some((perm) => userPermissions.includes(perm));
+  });
+
   const findSelectedKey = (
-    routes: typeof RouteList,
+    routes: typeof filteredRoutes,
     currentPath: string,
   ): string | undefined => {
     for (const route of routes) {
@@ -27,7 +43,7 @@ const Sidebar = ({ collapsed }: IProps) => {
   };
 
   const findOpenKey = (
-    routes: typeof RouteList,
+    routes: typeof filteredRoutes,
     currentPath: string,
   ): string | undefined => {
     for (const route of routes) {
@@ -38,11 +54,11 @@ const Sidebar = ({ collapsed }: IProps) => {
     return undefined;
   };
 
-  const openKey = findOpenKey(RouteList, location.pathname);
+  const openKey = findOpenKey(filteredRoutes, location.pathname);
 
-  const selectedKey = findSelectedKey(RouteList, location.pathname);
+  const selectedKey = findSelectedKey(filteredRoutes, location.pathname);
 
-  const buildMenuItems = (routes: typeof RouteList) =>
+  const buildMenuItems = (routes: typeof filteredRoutes) =>
     routes.map((route) => {
       if (route.children) {
         return {
@@ -91,7 +107,7 @@ const Sidebar = ({ collapsed }: IProps) => {
           selectedKeys={[selectedKey || ""]}
           defaultOpenKeys={[openKey || ""]}
           onClick={({ key }) => navigate(key)}
-          items={buildMenuItems(RouteList)}
+          items={buildMenuItems(filteredRoutes)}
         />
       </Sider>
     </div>

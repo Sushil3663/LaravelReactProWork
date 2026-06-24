@@ -45,13 +45,25 @@ Route::middleware('jwt.custom')->group(function () {
         Route::post('/other-information', [OnBoardingController::class, 'updateOtherInformation']);
     });
 
-    Route::prefix('users')->group(function () {
-        Route::get('/', [UserController::class, 'index']);
-        Route::get('/{id}', [UserController::class, 'show']);
+    Route::middleware('permission:usermanagement.list')->group(function () {
+        Route::get('/users', [UserController::class, 'index']);
     });
 
-    Route::middleware('role:Super Admin')->prefix('users')->group(function () {
+    Route::middleware('permission:usermanagement.view')->group(function () {
+        Route::get('/users/{id}', [UserController::class, 'show']);
+    });
+
+    Route::middleware('permission:usermanagement.edit')->prefix('users')->group(function () {
         Route::post('/{id}/assign-role', [UserController::class, 'assignRole']);
         Route::post('/{id}/remove-role', [UserController::class, 'removeRole']);
+        Route::get('/{id}/permissions', [UserController::class, 'userPermissions']);
+        Route::post('/{id}/sync-permissions', [UserController::class, 'syncPermissions']);
+    });
+
+    Route::middleware('role:Super Admin')->get('/permissions', [UserController::class, 'permissions']);
+
+    Route::middleware('permission:usermanagement.edit')->prefix('roles')->group(function () {
+        Route::get('/', [UserController::class, 'roles']);
+        Route::post('/{roleId}/sync-permissions', [UserController::class, 'syncRolePermissions']);
     });
 });

@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { userApi } from '@/features/user-management/api/userApi';
 import { message } from 'antd';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/app/store';
 
 export function useUsers(page: number) {
   return useQuery({
@@ -43,6 +41,58 @@ export function useRemoveRole() {
   });
 }
 
-export function useCurrentUser() {
-  return useSelector((state: RootState) => state.auth.user);
+export function useAllPermissions() {
+  return useQuery({
+    queryKey: ['permissions'],
+    queryFn: () => userApi.getAllPermissions(),
+  });
+}
+
+export function useUserPermissions(userId: string | null) {
+  return useQuery({
+    queryKey: ['user-permissions', userId],
+    queryFn: () => userApi.getUserPermissions(userId!),
+    enabled: !!userId,
+  });
+}
+
+export function useSyncPermissions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, permissions }: { id: string; permissions: string[] }) =>
+      userApi.syncPermissions(id, permissions),
+    onSuccess: () => {
+      message.success('Permissions updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-permissions'] });
+    },
+    onError: () => {
+      message.error('Failed to update permissions');
+    },
+  });
+}
+
+export function useRolesWithPermissions() {
+  return useQuery({
+    queryKey: ['roles-with-permissions'],
+    queryFn: () => userApi.getRolesWithPermissions(),
+  });
+}
+
+export function useSyncRolePermissions() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ roleId, permissions }: { roleId: number; permissions: string[] }) =>
+      userApi.syncRolePermissions(roleId, permissions),
+    onSuccess: () => {
+      message.success('Role permissions updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['roles-with-permissions'] });
+      queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: () => {
+      message.error('Failed to update role permissions');
+    },
+  });
 }

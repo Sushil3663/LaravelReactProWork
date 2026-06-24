@@ -2,47 +2,49 @@
 
 namespace Database\Seeders;
 
-use App\Models\Customer;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // 1. Create permissions
-        $permissions = [
-            'create',
-            'read',
-            'update',
-            'delete',
-            'list',
-        ];
-        foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission, 'guard_name' => 'api']);
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $modules = ['usermanagement', 'onboarding', 'profiles'];
+        $actions = ['list', 'view', 'create', 'edit', 'delete'];
+
+        foreach ($modules as $module) {
+            foreach ($actions as $action) {
+                Permission::firstOrCreate(['name' => "{$module}.{$action}", 'guard_name' => 'api']);
+            }
         }
 
-        // 2. Create roles and assign permissions
-        $roles = [
-            'Super Admin' => ['create', 'read', 'update', 'delete', 'list'],
-            'Admin' => ['create', 'read', 'update', 'delete', 'list'],
-            'User' => ['read', 'list'],
-        ];
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin', 'guard_name' => 'api']);
+        $superAdmin->syncPermissions(Permission::all());
 
-        foreach ($roles as $roleName => $perms) {
-            $role = Role::create(['name' => $roleName, 'guard_name' => 'api']);
-            $role->syncPermissions($perms);
-        }
-        // 3. (Optional) Assign Super Admin role to an existing user
-        // $customer = Customer::where('email', 'karkisushil309@gmail.com')->first();
-        // if ($customer) {
-        //     $customer->assignRole('Super Admin');
-        // }
+        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'api']);
+        $admin->syncPermissions([
+            'usermanagement.list',
+            'usermanagement.view',
+            'onboarding.list',
+            'onboarding.view',
+            'onboarding.create',
+            'onboarding.edit',
+            'profiles.list',
+            'profiles.view',
+        ]);
+
+        $user = Role::firstOrCreate(['name' => 'User', 'guard_name' => 'api']);
+        $user->syncPermissions([
+            'profiles.list',
+            'profiles.view',
+            'profiles.edit',
+            'onboarding.list',
+            'onboarding.view',
+            'onboarding.create',
+            'onboarding.edit',
+        ]);
     }
-
 }

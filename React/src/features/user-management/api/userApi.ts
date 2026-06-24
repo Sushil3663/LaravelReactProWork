@@ -38,4 +38,22 @@ export const userApi = {
 
   removeRole: (id: string, role: string) =>
     api.post(`/users/${id}/remove-role`, { role }).then((r) => r.data),
+
+  getAllPermissions: () =>
+    api.get<{ resCode: string; resDesc: string; data: Record<string, { id: number; name: string }[]> }>('/permissions')
+      .then((r) => r.data.data),
+
+  getUserPermissions: (id: string) =>
+    api.get<{ resCode: string; resDesc: string; data: { direct_permissions: string[] } }>(`/users/${id}/permissions`)
+      .then((r) => r.data.data.direct_permissions),
+
+  syncPermissions: (id: string, permissions: string[]) =>
+    api.post(`/users/${id}/sync-permissions`, { permissions }).then((r) => r.data),
+
+  getRolesWithPermissions: () =>
+    api.get<{ resCode: string; resDesc: string; data: { id: number; name: string; guard_name: string; permissions: { id: number; name: string }[] }[] }>('/roles')
+      .then((r) => r.data.data),
+
+  syncRolePermissions: (roleId: number, permissions: string[]) =>
+    api.post(`/roles/${roleId}/sync-permissions`, { permissions }).then((r) => r.data),
 };

@@ -5,7 +5,7 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  roles?: { id: number; name: string; guard_name: string }[];
+  all_permissions?: string[];
 }
 
 interface AuthState {
