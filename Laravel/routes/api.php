@@ -1,6 +1,7 @@
 <?php
 
 use App\Domains\AccountOpening\Http\Controllers\OnBoardingController;
+use App\Domains\UserManagement\Http\Controllers\UserController;
 use App\Http\Controllers\Api\MasterDataController;
 use Illuminate\Support\Facades\Route;
 use App\Domains\Auth\Http\Controllers\AuthController;
@@ -42,5 +43,15 @@ Route::middleware('jwt.custom')->group(function () {
         Route::post('/case-upload', [OnBoardingController::class, 'UploadCaseDocuments']);
         Route::post('/basic-information', [OnBoardingController::class, 'updateBasicInformation']);
         Route::post('/other-information', [OnBoardingController::class, 'updateOtherInformation']);
+    });
+
+    Route::prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index']);
+        Route::get('/{id}', [UserController::class, 'show']);
+    });
+
+    Route::middleware('role:Super Admin')->prefix('users')->group(function () {
+        Route::post('/{id}/assign-role', [UserController::class, 'assignRole']);
+        Route::post('/{id}/remove-role', [UserController::class, 'removeRole']);
     });
 });

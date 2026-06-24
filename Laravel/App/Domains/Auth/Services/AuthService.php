@@ -45,6 +45,7 @@ class AuthService
     {
         $data['password'] = bcrypt($data['password']);
         $creatableData = $this->customer->create($data);
+        $creatableData->assignRole('User');
         if ($creatableData) {
             $this->profile->create(['user_id' => $creatableData->id, 'name' => $creatableData->name, 'mobile' => $creatableData->phone, 'email' => $creatableData->email]);
         } else {

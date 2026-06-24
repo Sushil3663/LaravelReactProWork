@@ -1,7 +1,7 @@
 // Global font size
 export const DEFAULT_FONT_SIZE = 10;
 import "@ant-design/icons";
-import { DashOutlined } from "@ant-design/icons";
+import { DashOutlined, UserOutlined } from "@ant-design/icons";
 
 export const SIDEBAR_ROUTES = [
   {
@@ -19,13 +19,13 @@ export const SIDEBAR_ROUTES = [
     key: "/",
   },
 
-  // {
-  //   route: "/employee-management",
-  //   name: "Employee Management",
-  //   pathname: "Employee",
-  //   icon: EmployeeManagementIcon,
-  //   key: "/employee-management",
-  // },
+  {
+    route: "/user-management",
+    name: "User Management",
+    pathname: "User Management",
+    icon: <UserOutlined />,
+    key: "/user-management",
+  },
 ];
 
 export const RELOAD_PERMISSION_MESSAGE =

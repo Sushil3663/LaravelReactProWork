@@ -72,4 +72,11 @@ export const RouteList = [
     pathname: "Change Password",
     icon: KeyOutlined,
   },
+  {
+    path: "/user-management",
+    component: lazy(() => import("../features/user-management/pages/UserManagementPage")),
+    exact: true,
+    pathname: "User Management",
+    icon: UserOutlined,
+  },
 ];
